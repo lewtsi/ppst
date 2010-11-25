@@ -1,7 +1,7 @@
 #ifndef AX_MCU_H
 #define AX_MCU_H
 
-#include "ax_common.h"
+#include "ax_stdlib.h"
 
 
 void ax_system_init(void);

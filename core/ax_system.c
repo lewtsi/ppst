@@ -1,9 +1,13 @@
+
 #include "ax_system.h"
 
 #include "ax_gpio.h"
 #include "ax_usart.h"
 #include "ax_systick.h"
+#include "ax_flash.h"
 
+static opt_result_t opt_result;
+static char rd[12];
 
 _fx void fx_NVIC_Configuration(void)
 {
@@ -79,9 +83,45 @@ void ax_system_init(void)
 
 void ax_system_running(void)
 {
+	uint8_t i, circle_tmp = 0x30;
+	char arr[12] = "123456789ab";
+	
+	FLASH_Unlock();
+	opt_result = ax_flash_config_info_init();
+	
 	for(;;){
 		if((ax_systick_counter & (uint32_t)0xFF) == 0){
-			ax_usart_send_string((uint8_t *)"Time has past 2.55s .\n", 24);
+			if(circle_tmp&0x01){
+				opt_result = ax_flash_config_info_write(FLASH_DATA_TYPE_A, arr, 7);
+				if(opt_result == OPT_SUCCESS){
+					ax_flash_config_info_read(FLASH_DATA_TYPE_A, rd, 9);
+					rd[9] = '\r';
+					rd[10] = '\n';
+					ax_usart_send_string((uint8_t *)rd, 11);
+				}else{
+					ax_usart_send_string((uint8_t *)"ERR: data A read error!\r\n", 25);
+				}
+				for(i=0; i<10; i++){
+					arr[i] ++;
+				}
+			}else{
+				opt_result = ax_flash_config_info_write(FLASH_DATA_TYPE_B, arr, 10);
+				if(opt_result == OPT_SUCCESS){
+					ax_flash_config_info_read(FLASH_DATA_TYPE_B, rd, 12);
+					rd[10] = '\r';
+					rd[11] = '\n';
+					ax_usart_send_string((uint8_t *)rd, 12);
+				}else{
+					ax_usart_send_string((uint8_t *)"ERR: data B read error!\r\n", 25);
+				}
+				for(i=0; i<10; i++){
+					arr[i] --;
+				}
+			}
+			ax_usart_send_char(circle_tmp);
+			if(++circle_tmp >= 0x3a) circle_tmp = 0x30;
+			ax_usart_send_string((uint8_t *)"=Time has past 2.55s .\r\n", 24);
+			while((ax_systick_counter & (uint32_t)0xFF) == 0);
 		}
 	}
 }
