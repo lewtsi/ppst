@@ -5,6 +5,8 @@
 #include "ax_usart.h"
 #include "ax_systick.h"
 #include "ax_flash.h"
+#include "ax_rtc.h"
+#include "ax_timer.h"
 
 static opt_result_t opt_result;
 static char rd[12];
@@ -85,12 +87,28 @@ void ax_system_running(void)
 {
 	uint8_t i, circle_tmp = 0x30;
 	char arr[12] = "123456789ab";
-	
+	uint32_t rtc_now;
+
+	ax_rtc_init();
+	ax_timerA_init(TCNT16_MAX);
 	FLASH_Unlock();
 	opt_result = ax_flash_config_info_init();
 	
 	for(;;){
-		if((ax_systick_counter & (uint32_t)0xFF) == 0){
+		if(ax_get_rtc_flag()){
+			ax_set_rtc_flag(0);
+			rtc_now = ax_get_rtc_time();
+			ax_usart_send_string((uint8_t *)"RTC NOW is : ", 13);
+			ax_usart_send_string((uint8_t *)&rtc_now, 4);
+			ax_usart_send_char('\r');
+			ax_usart_send_char('\n');
+		}
+		if(ax_get_timerA_flag()){
+			ax_set_timerA_flag(0);
+			ax_led_net_toggle();
+			ax_usart_send_string((uint8_t *)"TimerA overflow!\r\n", 18);
+		}
+		if((ax_systick_counter & (uint32_t)0xFF) == 0){	// systick
 			if(circle_tmp&0x01){
 				opt_result = ax_flash_config_info_write(FLASH_DATA_TYPE_A, arr, 7);
 				if(opt_result == OPT_SUCCESS){

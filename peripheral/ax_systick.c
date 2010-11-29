@@ -21,7 +21,6 @@ void SysTick_Handler()
 	++ax_systick_counter;
 	if((-- fx_systick_cnt_ass) == 0){
 		fx_systick_cnt_ass = AX_SYSTICK_OPT_CNT;
-		ax_led_net_toggle();	// only for test
 	}
 }
 
