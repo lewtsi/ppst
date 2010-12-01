@@ -81,6 +81,10 @@ void ax_system_init(void)
 	fx_RCC_Configuration();
 	fx_NVIC_Configuration();
 	fx_Peripheral_Configuration();
+	ax_rtc_init();
+	ax_timerA_init(TCNT16_MAX);
+	FLASH_Unlock();
+	opt_result = ax_flash_config_info_init();
 }
 
 void ax_system_running(void)
@@ -88,26 +92,34 @@ void ax_system_running(void)
 	uint8_t i, circle_tmp = 0x30;
 	char arr[12] = "123456789ab";
 	uint32_t rtc_now;
+	char rtcascii[8];
 
-	ax_rtc_init();
-	ax_timerA_init(TCNT16_MAX);
-	FLASH_Unlock();
-	opt_result = ax_flash_config_info_init();
-	
+	ax_usart_send_string("Welcome to PPST. \r\n", 19);
 	for(;;){
 		if(ax_get_rtc_flag()){
 			ax_set_rtc_flag(0);
 			rtc_now = ax_get_rtc_time();
-			ax_usart_send_string((uint8_t *)"RTC NOW is : ", 13);
-			ax_usart_send_string((uint8_t *)&rtc_now, 4);
+			//rtc_now = 0x0123ABCD;
+			ax_data_to_ascii((uint8_t *)&rtc_now, rtcascii, 4);
+			ax_usart_send_string("RTC NOW is : ", 13);
+			ax_usart_send_string(rtcascii, 8);
 			ax_usart_send_char('\r');
 			ax_usart_send_char('\n');
 		}
 		if(ax_get_timerA_flag()){
 			ax_set_timerA_flag(0);
 			ax_led_net_toggle();
-			ax_usart_send_string((uint8_t *)"TimerA overflow!\r\n", 18);
+			ax_usart_send_string("TimerA overflow!\r\n", 18);
+			ax_usart_wait_for_send_fin();
+			
+		    RTC_SetAlarm(RTC_GetCounter()+ 3);
+		    RTC_WaitForLastTask();
+		    PWR_EnterSTANDBYMode();
+
+			// 下面这条指令永远不会执行，Alarm唤醒后重头开始执行
+			ax_usart_send_string("After Standby mode.\r\n", 21);
 		}
+		#if 0
 		if((ax_systick_counter & (uint32_t)0xFF) == 0){	// systick
 			if(circle_tmp&0x01){
 				opt_result = ax_flash_config_info_write(FLASH_DATA_TYPE_A, arr, 7);
@@ -115,9 +127,9 @@ void ax_system_running(void)
 					ax_flash_config_info_read(FLASH_DATA_TYPE_A, rd, 9);
 					rd[9] = '\r';
 					rd[10] = '\n';
-					ax_usart_send_string((uint8_t *)rd, 11);
+					ax_usart_send_string(rd, 11);
 				}else{
-					ax_usart_send_string((uint8_t *)"ERR: data A read error!\r\n", 25);
+					ax_usart_send_string("ERR: data A read error!\r\n", 25);
 				}
 				for(i=0; i<10; i++){
 					arr[i] ++;
@@ -128,9 +140,9 @@ void ax_system_running(void)
 					ax_flash_config_info_read(FLASH_DATA_TYPE_B, rd, 12);
 					rd[10] = '\r';
 					rd[11] = '\n';
-					ax_usart_send_string((uint8_t *)rd, 12);
+					ax_usart_send_string(rd, 12);
 				}else{
-					ax_usart_send_string((uint8_t *)"ERR: data B read error!\r\n", 25);
+					ax_usart_send_string("ERR: data B read error!\r\n", 25);
 				}
 				for(i=0; i<10; i++){
 					arr[i] --;
@@ -138,9 +150,10 @@ void ax_system_running(void)
 			}
 			ax_usart_send_char(circle_tmp);
 			if(++circle_tmp >= 0x3a) circle_tmp = 0x30;
-			ax_usart_send_string((uint8_t *)"=Time has past 2.55s .\r\n", 24);
+			ax_usart_send_string("=Time has past 2.55s .\r\n", 24);
 			while((ax_systick_counter & (uint32_t)0xFF) == 0);
 		}
+		#endif
 	}
 }
 

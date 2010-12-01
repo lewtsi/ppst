@@ -10,7 +10,7 @@ Optimization: -O3
 
 
 This project is include aspects showing below:
-GPIO
+ GPIO
 EXTI
 USART
 TIMER
