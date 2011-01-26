@@ -8,104 +8,158 @@
  * 当写入一条配置信息时，第一字节写入长度，之后是校验值，最后是数据
  * 当查找位置时，第一字节不为FF则为已用，查找时使用分段查找
  * 64条分8段，每次查找段首不为ff则查找下一段
+ *
+ * 由于用一字节表示长度且不为FF，因此单条配置信息的最大的有效长度为254，
+ * 也就是说单条信息的最大空间占用为256字节。
+ *
+ * 从Ver.0.01a开始将各条配置的长度改为可编译前调整的方式，
+ * 而且为了保证其有更高的适用范围，信息长度改为两字节表示，
+ * 最大长度为(2048-4)。
+
+
+
+ * | 有效数据长度[2B] | 校验值[2B] | 有效数据 ... |
  **/
 #include "ax_flash.h"
+#include "ax_usart.h"
 
 
-#define ST_FLASH_CFG_BASE_ADDR	((uint32_t)0x08017000)	// 92K
+#define FX_FLASH_CFG_BASE_ADDR	((uint32_t)0x08017000)	// 92K
 
-#define ST_FLASH_CFG_LEN_MAX	((uint8_t)30)	// 最大的配置字长度
-#define ST_FLASH_SEG_LEN		((uint8_t)32)	// 每条配置占用空间长度
-#define ST_FLASH_SEG_CNT_MAX	((uint8_t)64)	// 2k/32=64
-#define ST_FLASH_CFG_CNT_MAX	((uint8_t)9)	// 最多可有多少条配置信息
-#define ST_FLASH_CFG_CNT_USED	((uint8_t)3)	// 现在使用的配置条数
+#define FX_FLASH_CFG_CNT_MAX	((uint8_t)9)	// 最多可有多少条配置信息
 
-#define ST_FLASH_USER_DATA_ADD	((uint8_t)0x30)	// 用户读取长于实际的补充数据
+#define FX_SEG_HEAD_LEN			((uint8_t)4)	// 配置头数据长度
+#define FX_VERIFY_POS			((uint8_t)2)	// 校验值的位置
+#define FX_FLASH_USER_DATA_ADD	((uint8_t)0x30)	// 用户读取长于实际的补充数据
 
-static uint16_t st_flash_zone_flag;	// zone区段选择，16条兼容
-static uint8_t st_flash_seg_cnt[ST_FLASH_CFG_CNT_USED];	// 各条配置的segment cnt
+// ********************** modify segments (OP) ********************** //
 
-static uint16_t st_flash_read_buf[ST_FLASH_SEG_LEN >> 1];
+#define FX_FLASH_CFG_CNT_USED	((uint8_t)3)	// 现在使用的配置条数
+#define FX_FLASH_SEG_LEN_MAX	((uint16_t)256)	// 各条配置占用的最大空间长度
+static uint16_t fx_flash_seg_len[FX_FLASH_CFG_CNT_USED] = { 32, 64, 256 };
+			//<! 配置信息占用的空间长度 ( MUST BE 2^n !!!)
+static uint8_t fx_flash_seg_cnt_max[FX_FLASH_CFG_CNT_USED] = { 64, 32, 8 };
+			//<! 2K/fx_flash_seg_len (手动赋值)
 
-opt_result_t ax_flash_config_info_init(void)
+// ********************** modify segments (ED) ********************** //
+
+static uint16_t fx_flash_info_len_max[FX_FLASH_CFG_CNT_USED];
+			//<! 最大的有效数据长度(seg_len - 4)
+
+static uint16_t fx_flash_zone_flag;	// zone区段选择，16条兼容
+static uint8_t fx_flash_seg_cnt[FX_FLASH_CFG_CNT_USED];	// 各条配置的segment cnt
+
+static uint16_t fx_flash_read_buf[FX_FLASH_SEG_LEN_MAX >> 1];
+
+/// Flash config info init: write init value or get postion now
+/// \param result bit0-zone init success   bit1-zone init failure
+/// \retval OPT_SUCCESS if write init value ok, or got postion now
+///			OPT_FAILURE some wrong in init.
+opt_result_t ax_flash_config_info_init(uint16_t *result)
 {
 	uint8_t i_zone = 0;
 	uint8_t seek1;
-	uint32_t addr, addr_ass;
+	uint32_t addr, ass_addr;
 
-	addr_ass = ST_FLASH_CFG_BASE_ADDR;
-	//seek1_intv = ST_FLASH_SEG_LEN << 3;
-	while(i_zone < ST_FLASH_CFG_CNT_USED){	// 必须从0开始
-		addr = addr_ass;
+	*result = 0;
+	ass_addr = FX_FLASH_CFG_BASE_ADDR;
+	while(i_zone < FX_FLASH_CFG_CNT_USED){	// 必须从0开始
+		if(fx_flash_seg_len[i_zone] <= FX_SEG_HEAD_LEN){
+			ax_debug_message_output("ax_flash.c flash segment len "
+								"is too short.\n");
+			return OPT_FAILURE;
+		}
+		fx_flash_info_len_max[i_zone] = 
+				fx_flash_seg_len[i_zone] - FX_SEG_HEAD_LEN;
+		
+		addr = ass_addr;
 		if(*(__IO uint16_t *)addr == (uint16_t)0xFFFF){
-			st_flash_zone_flag |= (1<<i_zone);
+			fx_flash_zone_flag |= (1<<i_zone);
 			addr += ST_FLASH_PAGE_SIZE;
 			if(*(__IO uint16_t *)addr == (uint16_t)0xFFFF){
 				// 没有数据，初始化写入
 				addr -= ST_FLASH_PAGE_SIZE;
-				//st_flash_zone_flag &= ~(1<<i_zone);
-				st_flash_seg_cnt[i_zone] = ST_FLASH_SEG_CNT_MAX - 1;
-				ax_flash_config_info_write((st_flash_type_t)i_zone, 
-												"abcdefghi", 10);
+				//fx_flash_zone_flag &= ~(1<<i_zone);
+				fx_flash_seg_cnt[i_zone] = fx_flash_seg_cnt_max[i_zone] - 1;
+				*result |= (1 << i_zone);
+				i_zone ++;
 				continue;
 			}
 		}
-		for(seek1=1; seek1<ST_FLASH_SEG_CNT_MAX; seek1++){
-			addr += ST_FLASH_SEG_LEN;
+		for(seek1=1; seek1<fx_flash_seg_cnt_max[i_zone]; seek1++){
+			addr += fx_flash_seg_len[i_zone];
 			if(*(__IO uint16_t *)addr == (uint16_t)0xFFFF){
 				break;
 			}
 		}
-		st_flash_seg_cnt[i_zone] = seek1 - 1;
+		fx_flash_seg_cnt[i_zone] = seek1 - 1;
 		i_zone ++;
-		addr_ass += (ST_FLASH_PAGE_SIZE << 1);
+		ass_addr += (ST_FLASH_PAGE_SIZE << 1);
+	}
+	return OPT_SUCCESS;
+}
+
+opt_result_t fx_flash_write_half_word(uint32_t addr, uint16_t data)
+{
+	if(FLASH_ProgramHalfWord(addr, data)!= FLASH_COMPLETE)
+		return OPT_ERR_CODE_A;
+	if((*(__IO uint16_t*)addr) != data){
+		if(FLASH_ProgramHalfWord(addr, data)!= FLASH_COMPLETE)
+			return OPT_ERR_CODE_B;
+		if((*(__IO uint16_t*)addr) != data){
+			return OPT_ERR_CODE_C;
+		}
 	}
 	return OPT_SUCCESS;
 }
 
 opt_result_t ax_flash_config_info_write(st_flash_type_t type, 
-										char *buf, uint8_t len)
+										char *buf, uint16_t len)
 {
-	uint32_t addr;
+	static uint32_t addr;
 	uint16_t *hwbuf = (uint16_t *)buf;
-	uint8_t hwlen, i;
-	uint16_t data;
+	uint16_t hwlen, i, data;
+	uint8_t xor_tmp = 0;
+	opt_result_t wt_result;
 
-	if(len > ST_FLASH_CFG_LEN_MAX) return OPT_FAILUR;
-	if(type > ST_FLASH_CFG_CNT_USED) return OPT_ERR_CODE_SP;
+	if(type > FX_FLASH_CFG_CNT_USED) return OPT_ERR_CODE_SP;
+	if(len > fx_flash_info_len_max[type]) return OPT_FAILURE;
 
-	hwlen = len;	// hwlen <= xor (len ^ data ... )
+	// xor_tmp <- xor (len ^ data ... )
+	xor_tmp = (uint8_t)len;
+	xor_tmp ^= (uint8_t)(len >> 8);
 	for(i=0; i<len; i++, buf++){
-		hwlen ^= *buf;
+		xor_tmp ^= *buf;
 	}
-	data = ((uint16_t)hwlen << 8) | len;
-	st_flash_seg_cnt[type] ++;
-	if(st_flash_seg_cnt[type] == ST_FLASH_SEG_CNT_MAX){
-		addr = ST_FLASH_CFG_BASE_ADDR + ST_FLASH_PAGE_SIZE * (type << 1);
-		if(st_flash_zone_flag & (1<<type)) addr += ST_FLASH_PAGE_SIZE;
-		FLASH_ErasePage(addr);
-		st_flash_zone_flag ^= (1<<type);
-		st_flash_seg_cnt[type] = 0;
-	}
-	addr = ST_FLASH_CFG_BASE_ADDR + ST_FLASH_PAGE_SIZE * (type << 1);
-	if(st_flash_zone_flag & (1<<type)) addr += ST_FLASH_PAGE_SIZE;
-	addr += st_flash_seg_cnt[type] * ST_FLASH_SEG_LEN;
 
-	if(FLASH_ProgramHalfWord(addr, data)!= FLASH_COMPLETE)
+	fx_flash_seg_cnt[type] ++;
+	if(fx_flash_seg_cnt[type] == fx_flash_seg_cnt_max[type]){
+		addr = FX_FLASH_CFG_BASE_ADDR + ST_FLASH_PAGE_SIZE * (type << 1);
+		if(fx_flash_zone_flag & (1<<type)) addr += ST_FLASH_PAGE_SIZE;
+		FLASH_ErasePage(addr);
+		fx_flash_zone_flag ^= (1<<type);
+		fx_flash_seg_cnt[type] = 0;
+	}
+	addr = FX_FLASH_CFG_BASE_ADDR + ST_FLASH_PAGE_SIZE * (type << 1);
+	if(fx_flash_zone_flag & (1<<type)) addr += ST_FLASH_PAGE_SIZE;
+	addr += fx_flash_seg_cnt[type] * fx_flash_seg_len[type];
+
+	wt_result = fx_flash_write_half_word(addr, len);
+	if(wt_result != OPT_SUCCESS){
 		return OPT_ERR_CODE_A;
-	if((*(__IO uint16_t*)addr) != data)
-		return OPT_ERR_CODE_B;
+	}
 	addr += 2;
+	wt_result = fx_flash_write_half_word(addr, (uint16_t)xor_tmp);
+	if(wt_result != OPT_SUCCESS){
+		return OPT_ERR_CODE_A;
+	}
+	addr += 2;
+	
 	hwlen = len >> 1;
 	while(hwlen != 0){
-		if(FLASH_ProgramHalfWord(addr, *hwbuf)!= FLASH_COMPLETE)
-			return OPT_ERR_CODE_C;
-		if((*(__IO uint16_t*)addr) != *hwbuf){
-			if(FLASH_ProgramHalfWord(addr, *hwbuf)!= FLASH_COMPLETE)
-				return OPT_ERR_CODE_D;
-			if((*(__IO uint16_t*)addr) != *hwbuf){
-				return OPT_ERR_CODE_E;
-			}
+		wt_result = fx_flash_write_half_word(addr, *hwbuf);
+		if(wt_result != OPT_SUCCESS){
+			return OPT_ERR_CODE_A;
 		}
 		hwbuf ++;
 		addr += 2;
@@ -113,10 +167,10 @@ opt_result_t ax_flash_config_info_write(st_flash_type_t type,
 	}
 	if(len & 0x01){
 		data = (*hwbuf) & 0x00FF;
-		if(FLASH_ProgramHalfWord(addr, data)!= FLASH_COMPLETE)
-			return OPT_ERR_CODE_F;
-		if((*(__IO uint16_t*)addr) != data)
-			return OPT_ERR_CODE_G;
+		wt_result = fx_flash_write_half_word(addr, data);
+		if(wt_result != OPT_SUCCESS){
+			return OPT_ERR_CODE_A;
+		}
 	}
 	return OPT_SUCCESS;
 }
@@ -125,45 +179,58 @@ opt_result_t ax_flash_config_info_write(st_flash_type_t type,
 // even thought user maybe do not want all the things.
 // 如果用户读取的长度大于实际有的数据长度，则多出部分以零补充，并返回出错
 opt_result_t ax_flash_config_info_read(st_flash_type_t type, 
-											char *buf, uint8_t len)
+											char *buf, uint16_t len)
 {
 	static uint32_t addr;
-	uint16_t *hwbuf = st_flash_read_buf;
-	uint8_t *rd_buf = (uint8_t *)st_flash_read_buf;
-	uint8_t ixor = 0, hwlen, truelen;
-	static uint16_t ass_data;	// len + xor
+	uint16_t *hwbuf = fx_flash_read_buf;
+	uint8_t *rd_buf = (uint8_t *)fx_flash_read_buf;
+	static uint8_t ixor = 0;
+	static uint16_t ass_data, truelen, hwlen;
 	
-	addr = ST_FLASH_CFG_BASE_ADDR + ST_FLASH_PAGE_SIZE * (type << 1);
-	if(st_flash_zone_flag & (1<<type)) addr += ST_FLASH_PAGE_SIZE;
-	addr += st_flash_seg_cnt[type] * ST_FLASH_SEG_LEN;
+	if(type > FX_FLASH_CFG_CNT_USED) return OPT_ERR_CODE_SP;
+	if(len == 0) return OPT_SUCCESS;
+	
+	addr = FX_FLASH_CFG_BASE_ADDR + ST_FLASH_PAGE_SIZE * (type << 1);
+	if(fx_flash_zone_flag & (1<<type)) addr += ST_FLASH_PAGE_SIZE;
+	addr += fx_flash_seg_cnt[type] * fx_flash_seg_len[type];
 
+	truelen = *(__IO uint16_t*)addr;
+	if(truelen > fx_flash_info_len_max[type]) return OPT_ERR_CODE_A;
+	hwlen = ((truelen + 1) >> 1);
+	addr += 2;
 	ass_data = *(__IO uint16_t*)addr;
-	truelen = (uint8_t)ass_data;
-	if(truelen > ST_FLASH_CFG_LEN_MAX) return OPT_ERR_CODE_A;
-	hwlen = (truelen >> 1);
-	if(truelen & 0x01) hwlen ++;
+	ixor = (uint8_t)ass_data;
+	ixor ^= (uint8_t)truelen;
+	ixor ^= (uint8_t)(truelen >> 8);
 
-	*hwbuf = ass_data;
-	while(hwlen != 0){
+	// read to local buffer for verifying
+	while(hwlen -- != 0){
 		addr += 2;
-		hwbuf ++;
 		*hwbuf = *(__IO uint16_t*)addr;
-		hwlen --;
+		hwbuf ++;
 	}
-	hwlen = truelen+2;
+	
+	hwlen = (truelen + 1) & 0xFFFE;
 	while((hwlen --) != 0){
 		ixor ^= *rd_buf;
 		rd_buf ++;
 	}
-	if(ixor != 0) return OPT_ERR_CODE_B;
-	ax_buffer_copy((char *)&st_flash_read_buf[1], buf, len);
-	if(len > truelen){
+	if(ixor != 0){
+		ax_debug_message_output("Flash read xor wrong!\r\n");
+		return OPT_ERR_CODE_B;
+	}
+	
+	if(len <= truelen){
+		ax_buffer_copy((char *)&fx_flash_read_buf, buf, len);
+	}else{
+		ax_buffer_copy((char *)&fx_flash_read_buf, buf, truelen);
 		rd_buf = (uint8_t *)&buf[truelen];
 		for(; truelen < len; truelen ++, rd_buf ++){
-			*rd_buf = ST_FLASH_USER_DATA_ADD;
+			*rd_buf = FX_FLASH_USER_DATA_ADD;
 		}
 		//return OPT_RESULT_A;
 	}
+	
 	return OPT_SUCCESS;
 }
 

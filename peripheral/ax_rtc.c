@@ -25,11 +25,11 @@ opt_result_t ax_rtc_init(void)
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
+	//启用PWR和BKP的时钟（from APB1）
+	// 重启后如果使用RTC唤醒休眠也必须开启时钟并解锁 !!!
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);
+    PWR_BackupAccessCmd(ENABLE);	//后备域解锁
 	if(BKP_ReadBackupRegister(BKP_DR1) != 0xA5A5){
-		//启用PWR和BKP的时钟（from APB1）
-		RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);
-		
-	    PWR_BackupAccessCmd(ENABLE);	//后备域解锁
 	    BKP_DeInit();	//备份寄存器模块复位
 
 	    RCC_LSEConfig(RCC_LSE_ON);	//外部32.768K
@@ -58,13 +58,12 @@ opt_result_t ax_rtc_init(void)
 		//清除RCC中复位标志
 		RCC_ClearFlag();
 		
-		// 如果使用RTC唤醒休眠必须开启时钟并解锁 !!!
-		RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);
-	    PWR_BackupAccessCmd(ENABLE);
-		
 		rtc_status = OPT_RESULT_B;
 	}
-    
+    RTC_WaitForLastTask();
+	
+    RTC_ClearITPendingBit(RTC_IT_SEC);
+    RTC_WaitForLastTask();
     RTC_ITConfig(RTC_IT_SEC, ENABLE);	//使能秒中断
     RTC_WaitForLastTask();
 

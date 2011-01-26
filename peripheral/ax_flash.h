@@ -9,6 +9,7 @@
 	#warning "<st_flash.h> Maybe you need to modify the flash page size."
 #endif
 
+//<! MUST be 0 1 2 ...
 typedef enum{
 	FLASH_DATA_TYPE_A = 0,
 	FLASH_DATA_TYPE_B = 1,
@@ -20,11 +21,11 @@ typedef enum{
 	FLASH_DATA_TYPE_H
 }st_flash_type_t;
 
-opt_result_t ax_flash_config_info_init(void);
+opt_result_t ax_flash_config_info_init(uint16_t *result);
 opt_result_t ax_flash_config_info_write(st_flash_type_t type, 
-										char *buf, uint8_t len);
+										char *buf, uint16_t len);
 opt_result_t ax_flash_config_info_read(st_flash_type_t type, 
-										char *buf, uint8_t len);
+										char *buf, uint16_t len);
 
 #endif
 

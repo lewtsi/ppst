@@ -3,10 +3,7 @@
 
 #include "ax_stdlib.h"
 
-static uint8_t asciidata[16] = {'0', '1', '2', '3',
-								'4', '5', '6', '7',
-								'8', '9', 'A', 'B',
-								'C', 'D', 'E', 'F' };
+static uint8_t asciidata[16] = "0123456789ABCDEF";
 
 
 void ax_buffer_copy(char *src, char *dest, uint8_t len)
@@ -18,21 +15,32 @@ void ax_buffer_copy(char *src, char *dest, uint8_t len)
 	}
 }
 
+/// retval 0x00 OPT_SUCCESS equal
+/// retval 0xFF OPT_FAILURE	not_equal
+opt_result_t ax_buffer_compare(char *bufA, char *bufB, uint8_t len)
+{
+	while(len != 0){
+		if(*bufA != *bufB){
+			return OPT_FAILURE;
+		}
+		bufA ++;
+		bufB ++;
+		len --;
+	}
+	return OPT_SUCCESS;
+}
+
 void ax_data_to_ascii(uint8_t *data, char *buf, uint8_t datalen)
 {
-	uint8_t tmp;
-	buf += datalen << 1;	// 反序操作
-	buf --;
+	buf += (datalen << 1) - 1;	// 反序操作，正序输出
+	
 	while(datalen != 0){
-		tmp = *data & 0x0F;
-		*buf -- = asciidata[tmp];
-		tmp = (*data >> 4) & 0x0F;
-		*buf -- = asciidata[tmp];
+		*buf -- = asciidata[*data & 0x0F];
+		*buf -- = asciidata[(*data >> 4) & 0x0F];
 		data ++;
 		datalen --;
 	}
 }
-
 
 
 

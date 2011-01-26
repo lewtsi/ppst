@@ -65,7 +65,7 @@ void ax_usart_send_char(uint8_t data)
 	AXUSART_PORT->DR = data;
 }
 
-void ax_usart_send_string(char *buf, uint8_t len)
+void ax_usart_send_string(uint8_t *buf, uint8_t len)
 {
 	while(len != 0){
 		while(USART_GetFlagStatus(AXUSART_PORT, USART_FLAG_TC) == RESET){;}
@@ -74,10 +74,25 @@ void ax_usart_send_string(char *buf, uint8_t len)
 	}
 }
 
+void ax_usart_send_char_message(char *buf)
+{
+	while(*buf != '\0'){
+		while(USART_GetFlagStatus(AXUSART_PORT, USART_FLAG_TC) == RESET){;}
+		AXUSART_PORT->DR = *buf++;
+	}
+}
+
 /// 等待串口数据发送完成，仅特殊情况下使用
 void ax_usart_wait_for_send_fin(void)
 {
 	while(USART_GetFlagStatus(AXUSART_PORT, USART_FLAG_TC) == RESET){;}
+}
+
+void ax_debug_message_output(char *msg)
+{
+	#if(DEBUG_MSG_ON)
+	ax_usart_send_char_message(msg);
+	#endif
 }
 
 

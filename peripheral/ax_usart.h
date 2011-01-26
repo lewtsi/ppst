@@ -38,8 +38,10 @@ typedef struct{
 
 opt_result_t ax_usart_init(ax_usart_t *para);
 void ax_usart_send_char(uint8_t data);
-void ax_usart_send_string(char *buf, uint8_t len);
+void ax_usart_send_string(uint8_t *buf, uint8_t len);
+void ax_usart_send_char_message(char *buf);
 void ax_usart_wait_for_send_fin(void);
+void ax_debug_message_output(char *msg);
 
 #endif
 

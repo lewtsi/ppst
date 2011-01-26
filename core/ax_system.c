@@ -7,17 +7,29 @@
 #include "ax_flash.h"
 #include "ax_rtc.h"
 #include "ax_timer.h"
+#include "ax_command.h"
+
+#include "ax_spi_test.h"
+#include "ax_flash_test.h"
+
+#define FX_SYSTEM_DEBUG_EN	1
 
 static opt_result_t opt_result;
 static char rd[12];
 
-_fx void fx_NVIC_Configuration(void)
+#if(FX_SYSTEM_DEBUG_EN)
+_fx opt_result_t fx_program_function_check(void);
+#endif
+
+
+_fx void fx_std_NVIC_Configuration(void)
 {
 	NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x0);	
 	NVIC_PriorityGroupConfig(NVIC_GLOBAL_PRIORITYGROUP);
 }
 
-_fx void fx_RCC_Configuration(void)
+#ifdef STM32F10X_CL
+_fx void fx_std_RCC_Configuration(void)
 {
 	ErrorStatus HSEStartUpStatus;
 
@@ -59,14 +71,15 @@ _fx void fx_RCC_Configuration(void)
 		while (RCC_GetSYSCLKSource() != 0x08){}
 	}
 }
+#endif
 
-_fx void fx_Peripheral_Configuration(void)
+_fx void fx_std_Peripheral_Configuration(void)
 {
 	ax_usart_t fx_usart_para;
 	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE); 
 	ax_led_net_enable();
 	ax_led_data_enable();
-	ax_systick_init();
+	//ax_systick_init();
 	fx_usart_para.usartport = 2;
 	fx_usart_para.band = 3;
 	fx_usart_para.datasize = 8;
@@ -78,16 +91,30 @@ _fx void fx_Peripheral_Configuration(void)
 
 void ax_system_init(void)
 {
-	fx_RCC_Configuration();
-	fx_NVIC_Configuration();
-	fx_Peripheral_Configuration();
-	ax_rtc_init();
-	ax_timerA_init(TCNT16_MAX);
-	FLASH_Unlock();
-	opt_result = ax_flash_config_info_init();
+	// fx_std_RCC_Configuration();
+	SystemInit();
+	fx_std_NVIC_Configuration();
+	fx_std_Peripheral_Configuration();
+	//ax_rtc_init();
+	//ax_timerA_init(TCNT16_MAX);
+	//FLASH_Unlock();
+	//opt_result = ax_flash_config_info_init();
+	#if(FX_SYSTEM_DEBUG_EN)
+	opt_result = fx_program_function_check();
+	if(opt_result != OPT_SUCCESS){
+		ax_usart_send_string("EMERGE:Function check error!!!\r\n", 32);
+		while(1){;}
+	}
+	#endif
 }
 
 void ax_system_running(void)
+{
+	//ax_spi_test();
+	ax_flash_test();
+}
+
+void ax_system_running2(void)
 {
 	uint8_t i, circle_tmp = 0x30;
 	char arr[12] = "123456789ab";
@@ -157,5 +184,12 @@ void ax_system_running(void)
 	}
 }
 
+#if(FX_SYSTEM_DEBUG_EN)
+_fx opt_result_t fx_program_function_check(void)
+{
+	opt_result = ax_char_command_identify_check();
+	return opt_result;
+}
 
+#endif
 

@@ -1,7 +1,7 @@
 #if 0
 
 2010/11/31
-添加RTC Alarm功能。
+添加RTC Calendar & Alarm Wakeup功能。
 
 2010/11/29
 完成RTC和timer的基本功能测试。

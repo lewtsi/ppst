@@ -1,9 +1,6 @@
 
 #include "ax_gpio.h"
 
-
-
-
 void ax_led_net_enable(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
