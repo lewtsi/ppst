@@ -98,7 +98,7 @@ opt_result_t ax_char_command_identify(uint8_t *index, char *cmd, uint8_t len)
 	while(i != 0){
 		-- i;
 		if(sum == char_command[i].sum){
-			if(ax_buffer_compare(cmd, char_command[i].command, 
+			if(ax_stdlib_buffer_compare(cmd, char_command[i].command, 
 									char_command[i].cmd_len) != OPT_SUCCESS){
 				break;
 			}
@@ -112,7 +112,7 @@ opt_result_t ax_char_command_identify(uint8_t *index, char *cmd, uint8_t len)
 }
 
 /// DEBUG: check function identify char command sum 
-opt_result_t ax_char_command_identify_check(void)
+opt_result_t DBG_char_command_identify_check(void)
 {
 	#if(FX_CMD_DEBUG_ON)
 	uint8_t i = FX_CMD_USED_CNT, j;

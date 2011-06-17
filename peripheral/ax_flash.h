@@ -24,8 +24,10 @@ typedef enum{
 opt_result_t ax_flash_config_info_init(uint16_t *result);
 opt_result_t ax_flash_config_info_write(st_flash_type_t type, 
 										char *buf, uint16_t len);
+void ax_flash_info_stream_write_start(void);
+void ax_flash_info_stream_write_stop(void);
+opt_result_t ax_flash_info_stream_write(st_flash_type_t type, uint16_t data);
 opt_result_t ax_flash_config_info_read(st_flash_type_t type, 
-										char *buf, uint16_t len);
-
+										char **buf, uint16_t *len);
 #endif
 

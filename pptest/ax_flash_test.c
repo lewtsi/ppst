@@ -36,9 +36,10 @@ opt_result_t fx_flash_test_init(void)
 
 void fx_flash_test_loop(void)
 {
-	uint8_t i, data = '0', data2 = '0';
+	uint8_t i, data = '0', data2 = '0', rd_len;
 	uint16_t cnt;
 	opt_result_t opt_result;
+	char *rd_buf;
 	
 	while(1){
 		for(i=0; i<3; i++){
@@ -46,10 +47,10 @@ void fx_flash_test_loop(void)
 								cfg_init_info[i], init_info_len[i]);
 			if(opt_result == OPT_SUCCESS){
 				if(ax_flash_config_info_read((st_flash_type_t)i, 
-					info_rd, init_info_len[i]) != OPT_SUCCESS){
+										&rd_buf, &rd_len) != OPT_SUCCESS){
 					ax_usart_send_char_message("Flash Read error!\r\n");
 				}else{
-					ax_usart_send_char_message(info_rd);
+					ax_usart_send_char_message(rd_buf);
 				}
 			}else{
 				ax_usart_send_char_message("ERR: data A read error!\r\n");

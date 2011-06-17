@@ -18,7 +18,7 @@ static opt_result_t opt_result;
 static char rd[12];
 
 #if(FX_SYSTEM_DEBUG_EN)
-_fx opt_result_t fx_program_function_check(void);
+_fx opt_result_t DBG_program_function_check(void);
 #endif
 
 
@@ -127,7 +127,7 @@ void ax_system_running2(void)
 			ax_set_rtc_flag(0);
 			rtc_now = ax_get_rtc_time();
 			//rtc_now = 0x0123ABCD;
-			ax_data_to_ascii((uint8_t *)&rtc_now, rtcascii, 4);
+			ax_stdlib_data_to_ascii((uint8_t *)&rtc_now, rtcascii, 4);
 			ax_usart_send_string("RTC NOW is : ", 13);
 			ax_usart_send_string(rtcascii, 8);
 			ax_usart_send_char('\r');
@@ -185,9 +185,9 @@ void ax_system_running2(void)
 }
 
 #if(FX_SYSTEM_DEBUG_EN)
-_fx opt_result_t fx_program_function_check(void)
+_fx opt_result_t DBG_program_function_check(void)
 {
-	opt_result = ax_char_command_identify_check();
+	opt_result = DBG_char_command_identify_check();
 	return opt_result;
 }
 

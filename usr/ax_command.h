@@ -23,7 +23,7 @@ typedef struct{
 }ax_char_command_t;
 
 
-opt_result_t ax_char_command_identify_check(void);
+opt_result_t DBG_char_command_identify_check(void);
 
 
 #endif
