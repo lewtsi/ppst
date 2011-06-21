@@ -116,7 +116,7 @@ _fx void fx_spi_test_loop(void)
 
 void ax_spi_test(void)
 {
-	//ax_usart_send_char_message("Function :: SPI TEST");
+	//ax_usart_send_message("Function :: SPI TEST");
 	fx_spi_test_init();
 	fx_spi_test_loop();
 }

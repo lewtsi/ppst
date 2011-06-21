@@ -205,5 +205,12 @@ opt_result_t ax_stdlib_time_string_to_utc(char *str, uint32_t *utc)
 	return opt_result;
 }
 
+/// 查看数据是否是2的N次幂
+opt_result_t ax_stdlib_data_is_power_of_two(void data)
+{
+	if((data & (data - 1)) == 0) return OPT_RESULT_TRUE;
+	else OPT_RESULT_FALSE;
+}
+
 
 

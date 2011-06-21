@@ -67,7 +67,7 @@ opt_result_t ax_rtc_init(void)
     RTC_ITConfig(RTC_IT_SEC, ENABLE);	//使能秒中断
     RTC_WaitForLastTask();
 
-	fx_rtc_flag = 0;
+	fx_rtc_flag = FLAG_FALSE;
 	fx_rtc_flag_mask = 0xFF;	// 默认允许用户读取
 	fx_rtc_day_counter = 0;
 	
@@ -119,7 +119,7 @@ void RTC_IRQHandler(void)
 {
 	if(RTC_GetITStatus(RTC_IT_SEC) != RESET){
 		RTC_ClearITPendingBit(RTC_IT_SEC);//必须软件清零RTC秒中断
-		fx_rtc_flag = 0x01;
+		fx_rtc_flag = FLAG_TRUE;
 		RTC_WaitForLastTask();//等待写操作完成
 		//当RTC时钟为24:00:00时复位计数器 
 		if(RTC_GetCounter() == 0x00015180){

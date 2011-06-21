@@ -1,7 +1,9 @@
-#ifndef IIC_DRIVER_H
-#define IIC_DRIVER_H
+#ifndef AX_I2C_H
+#define AX_I2C_H
 
 #include "ax_common.h"
+
+#define AX_IIC_GPIO_SIMUL
 
 void ax_iic_init(void);
 uint8_t ax_iic_start(void);

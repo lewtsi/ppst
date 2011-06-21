@@ -3,6 +3,7 @@
 
 //static uint8_t ax_usart_buf[AXUSART_RX_BUF_CNT][AXUSART_RX_BUF_SIZE];
 //static ax_usart_rcvbuf_t * ax_rcv_buf;
+static char fx_hex2ascii[] = "0123456789ABCDEF";
 
 opt_result_t ax_usart_init(ax_usart_t *para)
 {
@@ -74,13 +75,29 @@ void ax_usart_send_string(uint8_t *buf, uint8_t len)
 	}
 }
 
-void ax_usart_send_char_message(char *buf)
+void ax_usart_send_message(char *msg)
 {
-	while(*buf != '\0'){
+	while(*msg != '\0'){
 		while(USART_GetFlagStatus(AXUSART_PORT, USART_FLAG_TC) == RESET){;}
-		AXUSART_PORT->DR = *buf++;
+		AXUSART_PORT->DR = *msg ++;
 	}
 }
+
+// 0xA0B1C2D3 --> u8len = 4 --> "A0B1C2D3"
+void ax_usart_send_hex2ascii_string(uint8_t *buf, uint8_t u8len)
+{
+	uint8_t *p = buf + u8len - 1;
+	uint8_t data;
+
+	while(u8len -- != 0){
+		data = ((*p >> 4) & 0x0F);
+		ax_usart_send_char(fx_hex2ascii[data]);
+		data = *p & 0x0F;
+		ax_usart_send_char(fx_hex2ascii[data]);
+		p --;
+	}
+}
+
 
 /// 等待串口数据发送完成，仅特殊情况下使用
 void ax_usart_wait_for_send_fin(void)
@@ -91,7 +108,7 @@ void ax_usart_wait_for_send_fin(void)
 void ax_debug_message_output(char *msg)
 {
 	#if(DEBUG_MSG_ON)
-	ax_usart_send_char_message(msg);
+	ax_usart_send_message(msg);
 	#endif
 }
 

@@ -1,5 +1,5 @@
-#ifndef SENSOR_TMP102_H
-#define SENSOR_TMP102_H
+#ifndef AX_SS_TMP102_H
+#define AX_SS_TMP102_H
 
 #include "ax_common.h"
 #include "ax_i2c.h"

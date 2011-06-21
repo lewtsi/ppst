@@ -26,7 +26,7 @@ opt_result_t fx_flash_test_init(void)
 		if(init_result & (1 << i)){
 			if(ax_flash_config_info_write((st_flash_type_t)i, cfg_init_info[i],
 					init_info_len[i]) != OPT_SUCCESS){
-				ax_usart_send_char_message("Flash Init Wr failure!\r\n");
+				ax_usart_send_message("Flash Init Wr failure!\r\n");
 			}
 		}
 		i ++;
@@ -48,12 +48,12 @@ void fx_flash_test_loop(void)
 			if(opt_result == OPT_SUCCESS){
 				if(ax_flash_config_info_read((st_flash_type_t)i, 
 										&rd_buf, &rd_len) != OPT_SUCCESS){
-					ax_usart_send_char_message("Flash Read error!\r\n");
+					ax_usart_send_message("Flash Read error!\r\n");
 				}else{
-					ax_usart_send_char_message(rd_buf);
+					ax_usart_send_message(rd_buf);
 				}
 			}else{
-				ax_usart_send_char_message("ERR: data A read error!\r\n");
+				ax_usart_send_message("ERR: data A read error!\r\n");
 			}
 			cfg_init_info[i][0] = data2;
 			cfg_init_info[i][1] = data;
@@ -64,7 +64,7 @@ void fx_flash_test_loop(void)
 		}
 		cnt = 0xFFFF;
 		while(cnt -- != 0);
-		ax_usart_send_char_message("--------------------------------\r\n");
+		ax_usart_send_message("--------------------------------\r\n");
 	}
 }
 

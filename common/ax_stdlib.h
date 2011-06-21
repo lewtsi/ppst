@@ -18,7 +18,7 @@ opt_result_t ax_stdlib_decimal_string_to_ushort_III(char * str,
 uint32_t fx_stdlib_mktime (uint16_t year, uint8_t mon, uint8_t day, 
 								uint8_t hour, uint8_t min, uint8_t sec);
 opt_result_t ax_stdlib_time_string_to_utc(char *str, uint32_t *utc);
-
+opt_result_t ax_stdlib_data_is_power_of_two(void data);
 
 #endif
 
