@@ -16,8 +16,8 @@ void ax_iwdg_test(void)
 	ax_iwdg_init();		// ***
 
 	while(1){
-		if(ax_get_rtc_flag()){
-			ax_set_rtc_flag(FLAG_FALSE);
+		if(ax_rtc_get_sec_flag()){
+			ax_rtc_set_sec_flag(FLAG_FALSE);
 			if(++ iwdg_ass_cnt < 10){
 				ax_iwdg_reset();	// ***
 				ax_usart_send_message("IWDG counter : ");

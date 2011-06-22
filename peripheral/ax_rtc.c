@@ -85,32 +85,32 @@ void ax_rtc_enable(void)
 	fx_rtc_flag_mask = 0xFF;
 }
 
-uint8_t ax_get_rtc_flag(void)
+uint8_t ax_rtc_get_sec_flag(void)
 {
 	return (fx_rtc_flag & fx_rtc_flag_mask);
 }
 
-void ax_set_rtc_flag(uint8_t rtcflag)
+void ax_rtc_set_sec_flag(uint8_t rtcflag)
 {
 	fx_rtc_flag = rtcflag;
 }
 
-uint32_t ax_get_rtc_time(void)
+uint32_t ax_rtc_get_now_time(void)
 {
 	return RTC_GetCounter();
 }
 
-void ax_set_rtc_time(uint32_t rtctime)
+void ax_rtc_set_now_time(uint32_t rtctime)
 {
 	RTC_SetCounter(rtctime);
 }
 
-uint16_t ax_get_day_counter(void)
+uint16_t ax_rtc_get_day_counter(void)
 {
 	return fx_rtc_day_counter;
 }
 
-void ax_set_day_counter(uint16_t daycnt)
+void ax_rtc_set_day_counter(uint16_t daycnt)
 {
 	fx_rtc_day_counter = daycnt;
 }

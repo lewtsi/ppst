@@ -123,9 +123,9 @@ void ax_system_running2(void)
 
 	ax_usart_send_string("Welcome to PPST. \r\n", 19);
 	for(;;){
-		if(ax_get_rtc_flag()){
-			ax_set_rtc_flag(0);
-			rtc_now = ax_get_rtc_time();
+		if(ax_rtc_get_sec_flag()){
+			ax_rtc_set_sec_flag(0);
+			rtc_now = ax_rtc_get_now_time();
 			//rtc_now = 0x0123ABCD;
 			ax_stdlib_data_to_ascii((uint8_t *)&rtc_now, rtcascii, 4);
 			ax_usart_send_string("RTC NOW is : ", 13);

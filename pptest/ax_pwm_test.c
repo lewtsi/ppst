@@ -14,9 +14,8 @@ void ax_pwm_test(void)
 	ax_pwm_input_init();	// ***
 
 	while(1){
-		if(ax_get_rtc_flag()){
-			ax_set_rtc_flag(FLAG_FALSE);
-			// ***
+		if(ax_rtc_get_sec_flag()){
+			ax_rtc_set_sec_flag(FLAG_FALSE);
 			if(ax_pwm_input_get_info(&fx_pwm_duty_cycle, &fx_pwm_frequency) 
 														!= OPT_RESULT_TRUE){
 				ax_usart_send_message("PWM Input value error!\r\n");
