@@ -1,7 +1,7 @@
 #ifndef AX_FLASH_H
 #define AX_FLASH_H
 
-#include "ax_stdlib.h"
+#include "ax_common.h"
 
 #if defined (STM32F10X_HD) || defined (STM32F10X_CL)
 	#define ST_FLASH_PAGE_SIZE  (uint32_t)0x800

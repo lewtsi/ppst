@@ -22,7 +22,7 @@ void ax_iwdg_init(void)
 
 opt_result_t ax_iwdg_system_boot_is_iwdg_reset(void)
 {
-	if((fx_system_boot_reason != AX_BOOT_IWDG) &&
+	if((fx_system_boot_reason != AX_BOOT_IWDG) &&	// for second read
 					(fx_system_boot_reason != AX_BOOT_NORMAL)){
 		if(RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET){
 			fx_system_boot_reason = AX_BOOT_IWDG;

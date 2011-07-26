@@ -21,7 +21,7 @@
  * | 有效数据长度[2B] | 校验值[2B] | 有效数据 ... |
  **/
 #include "ax_flash.h"
-#include "ax_usart.h"
+#include "stm32_com.h"
 
 
 #define FX_FLASH_CFG_BASE_ADDR	((uint32_t)0x08017000)	// 92K
@@ -69,9 +69,9 @@ opt_result_t ax_flash_config_info_init(uint16_t *result)
 	ass_addr = FX_FLASH_CFG_BASE_ADDR;
 	while(i_zone < FX_FLASH_CFG_CNT_USED){	// 必须从0开始
 		if(fx_flash_seg_len[i_zone] <= FX_SEG_HEAD_LEN){
-			ax_debug_message_output("ax_flash.c flash segment len "
+			debug_info_output("ax_flash.c flash segment len "
 								"is too short.\n");
-			return OPT_FAILURE;
+			return OPT_FAILUR;
 		}
 		fx_flash_info_len_max[i_zone] = 
 				fx_flash_seg_len[i_zone] - FX_SEG_HEAD_LEN;
@@ -129,7 +129,7 @@ opt_result_t ax_flash_config_info_write(st_flash_type_t type,
 	opt_result_t wt_result;
 
 	if(type > FX_FLASH_CFG_CNT_USED) return OPT_ERR_CODE_SP;
-	if(len > fx_flash_info_len_max[type]) return OPT_FAILURE;
+	if(len > fx_flash_info_len_max[type]) return OPT_FAILUR;
 
 	// xor_tmp <- xor (len ^ data ... )
 	xor_tmp = (uint8_t)len;
@@ -200,7 +200,7 @@ opt_result_t ax_flash_info_stream_write(st_flash_type_t type, uint16_t data)
 	static uint32_t addr, head_addr;		// 静态变量!!
 	static uint8_t xor_tmp = 0, stream_len = 0;	// 静态变量!!
 	static uint8_t using_flag = 0;	// 本轮进行中值为(flash_type+1)
-	uint16_t hwlen, i;
+	//uint16_t hwlen, i;
 	opt_result_t wt_result;
 
 	if(type > FX_FLASH_CFG_CNT_USED) return OPT_ERR_CODE_SP;
@@ -223,7 +223,7 @@ opt_result_t ax_flash_info_stream_write(st_flash_type_t type, uint16_t data)
 	}
 	if(using_flag != (type + 1))	return OPT_ERR_CODE_G;	
 							// 写入的类型与之前的stream类型不匹配
-	if(stream_len > fx_flash_info_len_max[type]) return OPT_FAILURE;
+	if(stream_len > fx_flash_info_len_max[type]) return OPT_FAILUR;
 
 	xor_tmp ^= (uint8_t)data;
 	xor_tmp ^= (uint8_t)(data >> 8);
@@ -291,11 +291,11 @@ opt_result_t ax_flash_config_info_read(st_flash_type_t type,
 		rd_buf ++;
 	}
 	if(ixor != 0){
-		ax_debug_message_output("Flash read xor wrong!\r\n");
+		debug_info_output("Flash read xor wrong!\r\n");
 		return OPT_ERR_CODE_B;
 	}
 	
-	*buf = (char *)(&fx_flash_read_buf[FX_SEG_HEAD_LEN]);
+	*buf = (char *)(&fx_flash_read_buf[0]);	// FX_SEG_HEAD_LEN
 	*len = truelen;
 	
 	#if 0
