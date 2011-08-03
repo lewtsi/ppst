@@ -8,10 +8,10 @@
 #include "stm32f10x.h"
 
 
-#define NVIC_GLOBAL_PRIORITYGROUP NVIC_PriorityGroup_3
+#define NVIC_GLOBAL_PRIORITYGROUP NVIC_PriorityGroup_1
 // 抢占优先级
-#define NVIC_PreemptionPriority_USART 6	
-#define NVIC_SubPriority_USART2	0
+#define NVIC_PreemptionPriority_USART	1	
+#define NVIC_SubPriority_USART1			2
 
 
 #define BKP_DR_VALUE BKP_DR1
@@ -31,8 +31,8 @@
 #define AXUSART_AUTO_XOR_ON			1
 
 #define AXUSART_RX_BUFFER_CNT		(2)
-#define AXUSART_RX_BUFFER_SIZE		( 118 )
-#define AXUSART_RX_MAX_BYTES		(AXUSART_RX_BUFFER_SIZE - 4)
+#define AXUSART_RX_BUFFER_SIZE		( 128 )
+#define AXUSART_RX_MAX_BYTES		(AXUSART_RX_BUFFER_SIZE)
 
 #define AXUSART_TYPE_232    (1)
 #define AXUSART_TYPE_485    (2)
@@ -50,7 +50,7 @@
 #define AXUSART_TIMEOUT_DEFAULT		20		// 20ms
 #define AXUSART_TIMEOUT_MAX_MASK	0x3F	// 63ms
 
-#define AXUSART_ERR_PRT			(0x01<<0)	// ERROR code must larger than zero
+#define AXUSART_ERR_UPRT		(0x01<<0)	// ERROR code must larger than zero
 #define AXUSART_ERR_BAUDRATE	(0x01<<1)
 #define AXUSART_ERR_CHARSIZE	(0x01<<2)
 #define AXUSART_ERR_PARITY		(0x01<<3)
@@ -69,9 +69,10 @@ typedef struct{
 }st_usart_para_t;
 
 typedef enum{
-	ax_usart_flowCtrl_en = 0x01,
-	ax_usart_resA = 0x02,
-	ax_usart_resB = 0x04
+	ax_usart_rxFlowCtrl_en = 0x01,
+	ax_usart_txFlowCtrl_en = 0x02,
+	ax_usart_resA = 0x04,
+	ax_usart_resB = 0x08
 }st_usart_func_flag_t;
 
 typedef enum{	//Main Freq= 72MHz

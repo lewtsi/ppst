@@ -45,7 +45,7 @@ uint8_t ax_timB_get_ov_flag(void);
 void ax_timB_set_ov_flag(uint8_t flagValue);
 uint8_t ax_timB_get_status(void);
 
-void ax_timUsart_init(uint16_t initValue);
+void ax_timUsart_init(uint16_t initValue, void (* ov_func)());
 void ax_timUsart_enable(void);
 void ax_timUsart_disable(void);
 void ax_timUsart_counter_clear(void);

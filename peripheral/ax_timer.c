@@ -141,7 +141,9 @@ uint8_t ax_timB_get_status(void)
 	return (fx_timB_running_flag);
 }
 
-void ax_timUsart_init(ax_tim_initValue_t initValue)
+void (* fx_timUsart_ov_func)(void);
+
+void ax_timUsart_init(ax_tim_initValue_t initValue, void (* ov_func)())
 {
 	NVIC_InitTypeDef NVIC_InitStructure;
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
@@ -163,6 +165,7 @@ void ax_timUsart_init(ax_tim_initValue_t initValue)
 	TIM_Cmd(FX_TIMUSART, DISABLE);	//ENABLE
 
 	fx_timUsart_OV_flag = FLAG_FALSE;
+	fx_timUsart_ov_func = ov_func;
 }
 
 void ax_timUsart_enable(void)
@@ -211,6 +214,7 @@ void TIM5_IRQHandler(void)
 	if(TIM_GetITStatus(FX_TIMUSART, TIM_IT_Update)!= RESET){
 		TIM_ClearITPendingBit(FX_TIMUSART, TIM_FLAG_Update);
 		fx_timUsart_OV_flag = FLAG_TRUE;	// 初值将在USART的中断函数中赋值
+		(* fx_timUsart_ov_func)();
 		TIM_Cmd(FX_TIMUSART, DISABLE);
 	}
 }

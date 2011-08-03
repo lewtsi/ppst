@@ -9,8 +9,10 @@
 #define AXUSART_TX_PIN	(GPIO_Pin_9)
 #define AXUSART_RX_PIN	(GPIO_Pin_10)
 
-#define AXUSART_ASSPORT	(GPIOC)
-#define AXUSART_ASSPIN	(GPIO_Pin_0)
+#define AXUSART_ASSTXPORT	(GPIOC)		// txFlowCtrl & RS-485_CTRL
+#define AXUSART_ASSTXPIN	(GPIO_Pin_0)
+#define AXUSART_ASSRXPORT	(GPIOB)
+#define AXUSART_ASSRXPIN	(GPIO_Pin_0)
 
 #define fx_usart_rcc()	\
 		do{ \
@@ -19,13 +21,15 @@
 		}while(0)
 
 typedef struct{
-	uint8_t buff[USART_RX_BUFFER_SIZE];
+	uint8_t buff[AXUSART_RX_BUFFER_SIZE];
 	volatile uint8_t data_xor;
 	volatile uint16_t data_len;
 }ax_usart_rcv_buff_t;
 
-
-opt_result_t ax_usart_init(ax_usart_t *para);
+uint8_t ax_usart_get_rcv_used(void);
+ax_usart_rcv_buff_t * ax_usart_get_rcv_pool(void);
+void ax_usart_processing_fin(void);
+uint8_t ax_usart_init(st_usart_para_t * p_para);
 void ax_usart_send_char(uint8_t data);
 void ax_usart_send_string(uint8_t *buf, uint8_t len);
 void ax_usart_send_message(char *msg);

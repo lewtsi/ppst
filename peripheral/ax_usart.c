@@ -4,69 +4,74 @@
 #define USART_DMA_ENABLE	0
 #define USART_BAUD_CNT_MAX	12
 
-static uint8_t fx_usart_rcv_fin;
 static ax_usart_rcv_buff_t fx_usart_rcv_buff[AXUSART_RX_BUFFER_CNT];
-static ax_usart_rcv_buff_t *p_com_rcv_buff = &fx_usart_rcv_buff[0];
 static ax_usart_rcv_buff_t *fx_rcv_pool_start;
 static ax_usart_rcv_buff_t *fx_rcv_pool_end;
 static ax_usart_rcv_buff_t *fx_rcv_pool_head;
 static ax_usart_rcv_buff_t *fx_rcv_pool_tail;
-static volatile uint8_t fx_rcv_pool_items_free;
 static volatile uint8_t fx_rcv_pool_items_used;
-static bool fx_rcv_pool_OV_flag;	// overflow
+static volatile uint8_t fx_rcv_pool_OV_flag = 0;	// overflow
+static volatile uint8_t fx_counter_change_busy = 0;
 
 static char fx_hex2ascii[] = "0123456789ABCDEF";
 
 void fx_usart_pool_init( void )
 {
+	uint8_t i;
+
+	for(i=0; i<AXUSART_RX_BUFFER_CNT; i++){
+		fx_usart_rcv_buff[i].data_xor = 0;
+		fx_usart_rcv_buff[i].data_len = 0;
+	}
     fx_rcv_pool_start = fx_usart_rcv_buff;
     fx_rcv_pool_end = &fx_usart_rcv_buff[AXUSART_RX_BUFFER_CNT - 1];    
     fx_rcv_pool_head = fx_rcv_pool_start;
-    fx_rcv_pool_tail = fx_rcv_pool_end;    
-    fx_rcv_pool_items_free = AXUSART_RX_BUFFER_CNT;
+    fx_rcv_pool_tail = fx_rcv_pool_start;    
     fx_rcv_pool_items_used = 0;    
     fx_rcv_pool_OV_flag = false;
 }
 
+// 定时器超时 & 缓冲区满 执行该函数
 void fx_usart_rcv_end_handler(void)
 {    
-	if (fx_rcv_pool_items_free == 0){
-		fx_rcv_pool_OV_flag = true;
+	if (fx_rcv_pool_head == fx_rcv_pool_end){
+		fx_rcv_pool_head = fx_rcv_pool_start;
 	}else{
-		if (fx_rcv_pool_head == fx_rcv_pool_end){
-			fx_rcv_pool_head = fx_rcv_pool_start;
-		}else{
-			++fx_rcv_pool_head;
-		}
-		--fx_rcv_pool_items_free;
-		++fx_rcv_pool_items_used;
+		++fx_rcv_pool_head;
 	}
+	++fx_rcv_pool_items_used;
 }
 
-ax_usart_rcv_buff_t * ax_usart_get_rcv_pool(void)
-{
-	if (fx_rcv_pool_tail == fx_rcv_pool_end){
-		fx_rcv_pool_tail = fx_rcv_pool_start;
-	}else{
-		++fx_rcv_pool_tail;
-	}
-	++fx_rcv_pool_items_free;
-	--fx_rcv_pool_items_used;
-
-	return fx_rcv_pool_tail;
-}
-
-uint8_t ax_usart_get_rcv_OV_flag(void)
-{
-	return fx_rcv_pool_OV_flag;
-}
-
+// 获取当前缓冲区的使用数量
 uint8_t ax_usart_get_rcv_used(void)
 {
 	return fx_rcv_pool_items_used;
 }
 
+// 获取当前需要处理的缓冲区地址
+ax_usart_rcv_buff_t * ax_usart_get_rcv_pool(void)
+{
+	return fx_rcv_pool_tail;
+}
 
+void ax_usart_processing_fin(void)
+{
+	fx_rcv_pool_tail->data_xor=0;
+	fx_rcv_pool_tail->data_len=0;
+	if (fx_rcv_pool_tail == fx_rcv_pool_end){
+		fx_rcv_pool_tail = fx_rcv_pool_start;
+	}else{
+		++fx_rcv_pool_tail;
+	}
+	--fx_rcv_pool_items_used;
+
+	if(fx_rcv_pool_OV_flag){
+		USART_GetITStatus(USART1, USART_IT_RXNE);
+		USART_ReceiveData(USART1);
+		USART_ITConfig(AXUSART_PORT, USART_IT_RXNE, ENABLE);
+		fx_rcv_pool_OV_flag = 0;
+	}
+}
 
 _fx uint8_t fx_usart_parameter_verify(st_usart_para_t *p_para)
 {
@@ -140,15 +145,13 @@ uint8_t ax_usart_init(st_usart_para_t * p_para)
 	uint16_t tim_init_value;
 
 	fx_usart_rcc();
-	p_com_rcv_buff->data_xor=0;
-	p_com_rcv_buff->data_len=0;
 	
 	USART_DeInit(AXUSART_PORT);
 
 	NVIC_InitStructure.NVIC_IRQChannel = AXUSART_IRQ;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 
 											NVIC_PreemptionPriority_USART;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = NVIC_SubPriority_USART2;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = NVIC_SubPriority_USART1;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
@@ -162,11 +165,11 @@ uint8_t ax_usart_init(st_usart_para_t * p_para)
 	GPIO_InitStructure.GPIO_Pin = AXUSART_RX_PIN;
 	GPIO_Init(AXUSART_IOPORT, &GPIO_InitStructure);
 
-	if((p_para->func_flag & ax_usart_flowCtrl_en) || 
+	if((p_para->func_flag & (ax_usart_rxFlowCtrl_en|ax_usart_txFlowCtrl_en)) ||
 			(p_para->type == AXUSART_TYPE_485)){
 		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-		GPIO_InitStructure.GPIO_Pin = AXUSART_ASSPIN;
-		GPIO_Init(AXUSART_ASSPORT, &GPIO_InitStructure);
+		GPIO_InitStructure.GPIO_Pin = AXUSART_ASSTXPIN;
+		GPIO_Init(AXUSART_ASSTXPORT, &GPIO_InitStructure);
 	}
 
 	USARTClockInitStructure.USART_Clock = USART_Clock_Disable;
@@ -181,8 +184,10 @@ uint8_t ax_usart_init(st_usart_para_t * p_para)
 	USART_Cmd(AXUSART_PORT, ENABLE);
 	
 	tim_init_value = p_para->cfg_uart_timeout * TIM_INIT_1MS;
-	ax_timUsart_init(tim_init_value);
-
+	ax_timUsart_init(tim_init_value, fx_usart_rcv_end_handler);
+	
+	fx_usart_pool_init();
+	
 	return init_result;
 }
 
@@ -238,38 +243,6 @@ void ax_debug_message_output(char *msg)
 	#endif
 }
 
-
-ax_usart_rcv_buff_t* ax_usart_get_received_data( void )
-{
-    return p_com_rcv_buff;
-}
-
-
-uint16_t ax_usart_received_counter_value( void )
-{
-	if(ax_timUsart_get_OV_flag() || fx_usart_rcv_fin){
-		return p_com_rcv_buff->data_len; 
-	}else{
-		return 0;
-	}
-}
-
-void ax_usart_reset_receiver(void)
-{
-	uint8_t dummy;
-	
-	USART_ITConfig(AXUSART_PORT, USART_IT_RXNE, DISABLE);
-	p_com_rcv_buff->data_xor=0;
-	p_com_rcv_buff->data_len=0;
-	fx_usart_rcv_fin = false;
-	ax_timUsart_set_OV_flag(false);
-	USART_GetITStatus(AXUSART_PORT, USART_IT_RXNE);
-	dummy = USART_ReceiveData(AXUSART_PORT);
-	dummy = dummy;
-	
-	USART_ITConfig(AXUSART_PORT, USART_IT_RXNE, ENABLE);
-}
-
 void USART1_IRQHandler(void)
 {
 	uint8_t receivedData;
@@ -283,18 +256,19 @@ void USART1_IRQHandler(void)
 	ax_timUsart_disable();
 	ax_timUsart_counter_clear();
 	ax_timUsart_set_OV_flag(false);
-	
-	if (p_com_rcv_buff->data_len < AXUSART_RX_MAX_BYTES){
-		p_com_rcv_buff->buff[p_com_rcv_buff->data_len] = receivedData;
-		p_com_rcv_buff->data_len++;
+
+	if (fx_rcv_pool_head->data_len < AXUSART_RX_MAX_BYTES){
+		fx_rcv_pool_head->buff[fx_rcv_pool_head->data_len] = receivedData;
 		#if(AXUSART_AUTO_XOR_ON)
-		p_com_rcv_buff->data_xor^=receivedData;
+		fx_rcv_pool_head->data_xor^=receivedData;
 		#endif
-	}else{	//End of data stream.
-		USART_ITConfig(AXUSART_PORT, USART_IT_RXNE, DISABLE);
-		p_com_rcv_buff->buff[AXUSART_RX_MAX_BYTES] = receivedData;
-		p_com_rcv_buff->data_len = AXUSART_RX_MAX_BYTES;
-		fx_usart_rcv_fin = true;
+		if(fx_rcv_pool_head->data_len++ == AXUSART_RX_MAX_BYTES){
+			fx_usart_rcv_end_handler();
+			if(fx_rcv_pool_items_used == AXUSART_RX_BUFFER_CNT){
+				USART_ITConfig(AXUSART_PORT, USART_IT_RXNE, DISABLE);
+				fx_rcv_pool_OV_flag = 1;
+			}
+		}
 	}
 
 	ax_timUsart_enable();
