@@ -3,37 +3,26 @@
 
 #include "ax_common.h"
 
-#define AXUSART_RX_BUF_CNT		((uint8_t) 2)
-#define AXUSART_RX_BUF_SIZE		((uint8_t)128)
+#define AXUSART_PORT	(USART1)
+#define AXUSART_IRQ		(USART1_IRQn)
+#define AXUSART_IOPORT	(GPIOA)
+#define AXUSART_TX_PIN	(GPIO_Pin_9)
+#define AXUSART_RX_PIN	(GPIO_Pin_10)
 
-#define AXUSART_PORT	(USART2)
-#define AXUSART_IRQ		(USART2_IRQn)
-#define AXUSART_IOPORT	(GPIOD)
-#define AXUSART_TX_PIN	(GPIO_Pin_5)
-#define AXUSART_RX_PIN	(GPIO_Pin_6)
+#define AXUSART_ASSPORT	(GPIOC)
+#define AXUSART_ASSPIN	(GPIO_Pin_0)
 
 #define fx_usart_rcc()	\
 		do{ \
-			RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | \
-				RCC_APB2Periph_GPIOE | RCC_APB2Periph_AFIO, ENABLE); \
-		    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE); \
+			RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA , ENABLE); \
+		    RCC_APB1PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE); \
 		}while(0)
 
 typedef struct{
-	uint8_t usartport;
-	uint8_t band;
-	uint8_t datasize;
-	uint8_t parity;
-	uint8_t stopbit;
-	void * res;
-}ax_usart_t;
-
-typedef struct{
-	uint8_t *buff;
-	uint8_t data_xor;
-	uint8_t data_len;
-	uint8_t attribute;	// µÍËÄÎ»CNT
-}ax_usart_rcvbuf_t;
+	uint8_t buff[USART_RX_BUFFER_SIZE];
+	volatile uint8_t data_xor;
+	volatile uint16_t data_len;
+}ax_usart_rcv_buff_t;
 
 
 opt_result_t ax_usart_init(ax_usart_t *para);

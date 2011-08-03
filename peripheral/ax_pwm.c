@@ -4,7 +4,7 @@
 #define TIM_REBOOT_TIME		((uint16_t)30)	// ms
 
 static TIM_ICInitTypeDef PWMIN_ICInitStructure;
-static uint16_t fx_pwm_duty_cycle[4];
+static uint8_t fx_pwm_duty_cycle[4];
 static uint32_t fx_pwm_frequency[4];
 static volatile uint8_t fx_pwm_input_counting = 0;
 static volatile uint16_t fx_ic1value, fx_ic2value;
@@ -131,7 +131,7 @@ _fx void fx_pwm_input_value_handle(uint16_t TIM_CHNL, uint8_t arr_pos)
 	}
 }
 
-opt_result_t ax_pwm_input_get_info(uint16_t **duty_cycle, uint32_t **freq)
+opt_result_t ax_pwm_input_get_info(uint8_t **duty_cycle, uint32_t **freq)
 {
 	uint8_t i;
 	uint8_t opt_result = 0;
