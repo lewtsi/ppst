@@ -146,6 +146,11 @@ uint8_t ax_usart_init(st_usart_para_t * p_para)
 
 	fx_usart_rcc();
 	
+	tim_init_value = p_para->cfg_uart_timeout * TIM_INIT_1MS;
+	ax_timUsart_init(tim_init_value, fx_usart_rcv_end_handler);
+	
+	fx_usart_pool_init();
+	
 	USART_DeInit(AXUSART_PORT);
 
 	NVIC_InitStructure.NVIC_IRQChannel = AXUSART_IRQ;
@@ -182,11 +187,6 @@ uint8_t ax_usart_init(st_usart_para_t * p_para)
 
 	USART_ITConfig(AXUSART_PORT, USART_IT_RXNE, ENABLE);
 	USART_Cmd(AXUSART_PORT, ENABLE);
-	
-	tim_init_value = p_para->cfg_uart_timeout * TIM_INIT_1MS;
-	ax_timUsart_init(tim_init_value, fx_usart_rcv_end_handler);
-	
-	fx_usart_pool_init();
 	
 	return init_result;
 }
@@ -260,7 +260,7 @@ void USART1_IRQHandler(void)
 	if (fx_rcv_pool_head->data_len < AXUSART_RX_MAX_BYTES){
 		fx_rcv_pool_head->buff[fx_rcv_pool_head->data_len] = receivedData;
 		#if(AXUSART_AUTO_XOR_ON)
-		fx_rcv_pool_head->data_xor^=receivedData;
+		fx_rcv_pool_head->data_xor ^= receivedData;
 		#endif
 		if(fx_rcv_pool_head->data_len++ == AXUSART_RX_MAX_BYTES){
 			fx_usart_rcv_end_handler();

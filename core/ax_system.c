@@ -94,6 +94,10 @@ void ax_system_init(void)
 	// fx_std_RCC_Configuration();
 	SystemInit();
 	fx_std_NVIC_Configuration();
+	
+	ax_usart_test();
+
+	
 	fx_std_Peripheral_Configuration();
 	//ax_rtc_init();
 	//ax_timerA_init(TCNT16_MAX);
